@@ -3,6 +3,7 @@ on:
   workflow_dispatch:
   schedule:
     - cron: "0 0 * * *" # daily at midnight
+
 jobs:
   pin-latest-hyprland:
     runs-on: ubuntu-latest
@@ -10,27 +11,26 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0  # Fetch all history so we can tag any commit
+
       - uses: cachix/install-nix-action@v30
         with:
           github_access_token: ${{ secrets.GITHUB_TOKEN }}
           extra_nix_config: |
             extra-substituters = https://hyprland.cachix.org
             extra-trusted-public-keys = hyprland.cachix.org-1:a7pgxzMz7+chwVL3/pzj6jIBMioiJM7ypFP8PwtkuGc=
+
       - name: Update pins
         id: update_pins
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -eu
-          set -m   # workaround: I get "fg: no job control" even though I don't use any job control
+          set -m
           git fetch --depth=1 --tags origin main
 
-          # Run pin-latest-hyprland and capture output
           PIN_OUTPUT=$(./scripts/ci/pin-latest-hyprland origin/main)
-          
-          # Parse output: "hyprland_tag hyprgrass_commit"
+
           if [ -n "$PIN_OUTPUT" ]; then
-            # Validate output format (should have 2 space-separated values)
             WORD_COUNT=$(echo "$PIN_OUTPUT" | wc -w)
             if [ "$WORD_COUNT" -eq 2 ]; then
               HL_TAG=$(echo "$PIN_OUTPUT" | cut -d' ' -f1)
@@ -48,20 +48,17 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -eu
-          
+
           HL_TAG="${{ steps.update_pins.outputs.hl_tag }}"
           HYPRGRASS_COMMIT="${{ steps.update_pins.outputs.hyprgrass_commit }}"
-          
-          # Strip 'v' prefix from version if present for consistent tag naming
+
           VERSION="${HL_TAG#v}"
           TAG_NAME="hl-${VERSION}"
           echo "Tagging hyprgrass commit $HYPRGRASS_COMMIT with $TAG_NAME"
-          
-          # Configure git
+
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          
-          # Tag the specific hyprgrass commit (if tag doesn't exist)
+
           if [ -n "$(git tag -l "$TAG_NAME")" ]; then
             echo "Tag $TAG_NAME already exists, skipping"
           else
@@ -70,11 +67,12 @@ jobs:
             echo "Successfully created and pushed tag $TAG_NAME"
           fi
 
-      - name: Create Pull Request
-        uses: peter-evans/create-pull-request@v7
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          commit-message: 'ci: automated update of hyprpm.toml'
-          title: 'Automated PR: Update hyprpm pin'
-          body: 'This PR was created by a Github Actions workflow'
+      - name: Commit pin update
+        if: steps.update_pins.outputs.hl_tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
 
+          git add hyprpm.toml
+          git commit -m "ci: automated update of hyprpm.toml"
+          git push origin main

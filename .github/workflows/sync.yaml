@@ -1,0 +1,44 @@
+name: Sync main with upstream
+
+on:
+  schedule:
+    - cron: "0 0 * * *"   # once every 24 hours at midnight UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout fork main
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: main
+
+      - name: Add upstream remote
+        run: |
+          git remote add upstream https://github.com/Hyprland/Hyprgrass.git || true
+          git fetch upstream
+
+      - name: Merge upstream/main into fork/main
+        run: |
+          git checkout main
+          git merge upstream/main --no-commit || true
+
+          # If no changes, exit without committing
+          git diff --quiet && exit 0
+
+          # Preserve your workflow file
+          git restore --source=HEAD -- .github/workflows/update-pins.yml
+
+          # Preserve your pin file
+          git restore --source=HEAD -- hyprpm.toml
+
+          git commit -m "Sync main with upstream (workflow + pin preserved)"
+
+      - name: Push updated main
+        run: |
+          git push origin main

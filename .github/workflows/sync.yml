@@ -20,7 +20,7 @@ jobs:
 
       - name: Add upstream remote
         run: |
-          git remote add upstream https://github.com/Hyprland/Hyprgrass.git || true
+          git remote add upstream https://github.com/horriblename/hyprgrass.git || true
           git fetch upstream
 
       - name: Merge upstream/main into fork/main

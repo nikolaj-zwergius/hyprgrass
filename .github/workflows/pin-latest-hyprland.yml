@@ -2,15 +2,16 @@ name: "Update hyprpm pin on latest Hyprland release"
 on:
   workflow_dispatch:
   schedule:
-    - cron: "0 0 * * *" # daily at midnight
+    - cron: "0 0 * * *"
 
 jobs:
   pin-latest-hyprland:
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Fetch all history so we can tag any commit
+          fetch-depth: 0
 
       - name: Update pins
         id: update_pins
@@ -18,7 +19,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -eu
-          set -m
           git fetch --depth=1 --tags origin main
 
           PIN_OUTPUT=$(./scripts/ci/pin-latest-hyprland origin/main)
@@ -31,33 +31,27 @@ jobs:
               echo "hl_tag=$HL_TAG" >> $GITHUB_OUTPUT
               echo "hyprgrass_commit=$HYPRGRASS_COMMIT" >> $GITHUB_OUTPUT
             else
-              echo "Warning: Unexpected output format from pin-latest-hyprland: '$PIN_OUTPUT'"
+              echo "Warning: Unexpected output format: '$PIN_OUTPUT'"
             fi
           fi
 
       - name: Tag pinned commit
         if: steps.update_pins.outputs.hl_tag
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -eu
-
           HL_TAG="${{ steps.update_pins.outputs.hl_tag }}"
           HYPRGRASS_COMMIT="${{ steps.update_pins.outputs.hyprgrass_commit }}"
-
           VERSION="${HL_TAG#v}"
           TAG_NAME="hl-${VERSION}"
-          echo "Tagging hyprgrass commit $HYPRGRASS_COMMIT with $TAG_NAME"
 
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          if [ -n "$(git tag -l "$TAG_NAME")" ]; then
+          if git tag -l "$TAG_NAME" >/dev/null; then
             echo "Tag $TAG_NAME already exists, skipping"
           else
-            git tag "$TAG_NAME" "$HYPRGRASS_COMMIT" --message "Hyprland-${HL_TAG}"
+            git tag "$TAG_NAME" "$HYPRGRASS_COMMIT" -m "Hyprland-${HL_TAG}"
             git push origin "$TAG_NAME"
-            echo "Successfully created and pushed tag $TAG_NAME"
           fi
 
       - name: Commit pin update

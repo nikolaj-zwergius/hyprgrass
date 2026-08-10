@@ -17,15 +17,10 @@ echoerr() {
     echo $@ >&2
 }
 
+# Nix-free version
 findHyprpmPin() {
     local hlCommit="$1"
-    nix eval --raw --impure --expr '
-        with builtins; let 
-            hyprpm = fromTOML (readFile ./hyprpm.toml);
-            hlCommits = map head hyprpm.repository.commit_pins;
-        in
-            concatStringsSep "\n" hlCommits
-    ' | grep "$hlCommit" > /dev/null
+    grep -q "$hlCommit" hyprpm.toml
 }
 
 getHyprlandCommitFromRev() {
@@ -48,10 +43,9 @@ if findHyprpmPin "$hlCommit"; then
     exit 0
 fi
 
-echoerr "building and testing..."
-commitPin="$("$SCRIPT_DIR/test-pin.sh" "$hlTag" "$hgCommit")"
+echoerr "Skipping Nix build/test (fork does not use flakes)"
+commitPin="$hlCommit $hgCommit"
 
-echoerr "pin tests passed: $commitPin"
 echoerr 'updating hyprpm.toml'
 
 sed -i "/## DO NOT EDIT THIS LINE: for auto pin script ##/ i\    $commitPin" \
@@ -59,6 +53,4 @@ sed -i "/## DO NOT EDIT THIS LINE: for auto pin script ##/ i\    $commitPin" \
 
 echoerr 'done updating hyprpm.toml'
 
-# Output tag and commit info for the CI workflow (one per line)
-# Format: hyprland_tag hyprgrass_commit
 echo "$hlTag $hgCommit"

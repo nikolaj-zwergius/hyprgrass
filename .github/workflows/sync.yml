@@ -11,6 +11,7 @@ permissions:
 jobs:
   sync:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout fork main
         uses: actions/checkout@v4
@@ -23,22 +24,29 @@ jobs:
           git remote add upstream https://github.com/horriblename/hyprgrass.git || true
           git fetch upstream
 
-      - name: Merge upstream/main into fork/main
+      - name: Rebase fork/main onto upstream/main
         run: |
           git checkout main
-          git merge upstream/main --no-commit || true
 
-          # If no changes, exit without committing
+          # Attempt rebase
+          git rebase upstream/main || true
+
+          # If rebase produced no changes, exit
           git diff --quiet && exit 0
 
-          # Preserve your workflow file
+          # Restore your custom workflow files
           git restore --source=HEAD -- .github/workflows/update-pins.yml
+          git restore --source=HEAD -- .github/workflows/sync.yml
 
-          # Preserve your pin file
+          # Restore your custom pin file
           git restore --source=HEAD -- hyprpm.toml
 
-          git commit -m "Sync main with upstream (workflow + pin preserved)"
+          # Stage restored files
+          git add .
+
+          # Commit rebase result
+          git commit -m "Rebase main onto upstream/main (custom files preserved)"
 
       - name: Push updated main
         run: |
-          git push origin main
+          git push origin main --force-with-lease

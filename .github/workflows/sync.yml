@@ -23,7 +23,10 @@ jobs:
         run: |
           git remote add upstream https://github.com/horriblename/hyprgrass.git || true
           git fetch upstream
-
+      - name: Configure Git identity
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
       - name: Rebase fork/main onto upstream/main
         run: |
           git checkout main

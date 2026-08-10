@@ -45,8 +45,15 @@ jobs:
           git restore --source=HEAD -- .github/workflows/sync.yml
           git restore --source=HEAD -- hyprpm.toml
 
+          # Only commit if changes exist
+          if ! git diff --quiet || ! git diff --cached --quiet; then
           git add .
           git commit -m "Sync main with upstream (custom files preserved)"
+          git push origin main --force-with-lease
+          else
+          echo "No changes after rebase."  
+          fi
+
 
 
       - name: Push updated main

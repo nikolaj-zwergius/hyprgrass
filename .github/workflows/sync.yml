@@ -31,24 +31,23 @@ jobs:
         run: |
           git checkout main
 
-          # Attempt rebase
-          git rebase upstream/main || true
+          # Force upstream commits to apply and auto-resolve conflicts
+          git pull upstream main --rebase --strategy=recursive -X theirs
 
-          # If rebase produced no changes, exit
-          git diff --quiet && exit 0
+          # Exit if rebase produced no changes
+          if git diff --quiet HEAD upstream/main; then
+              echo "No changes after rebase."
+              exit 0
+          fi
 
-          # Restore your custom workflow files
+          # Restore custom files AFTER rebase is complete
           git restore --source=HEAD -- .github/workflows/update-pins.yml
           git restore --source=HEAD -- .github/workflows/sync.yml
-
-          # Restore your custom pin file
           git restore --source=HEAD -- hyprpm.toml
 
-          # Stage restored files
           git add .
+          git commit -m "Sync main with upstream (custom files preserved)"
 
-          # Commit rebase result
-          git commit -m "Rebase main onto upstream/main (custom files preserved)"
 
       - name: Push updated main
         run: |

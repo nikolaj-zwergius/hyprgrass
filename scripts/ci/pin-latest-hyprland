@@ -2,55 +2,62 @@
 
 set -eu
 
+echoerr() {
+    echo "$@" >&2
+}
+
 usage() {
     echoerr "Usage:"
     echoerr ""
     echoerr "    pin-latest-hyprland [HYPRGRASS_REV]"
     echoerr ""
-    echoerr "Pins the latest hyprland release to HYPRGRASS_REV (default HEAD) in hyprpm.toml."
-    echoerr "Does nothing if a pin on the hyprland release already exists."
+    echoerr "Pins the latest Hyprland release to HYPRGRASS_REV (default HEAD) in hyprpm.toml."
+    echoerr "Does nothing if a pin on the Hyprland release already exists."
 }
 
 HYPRGRASS_REV=${1:-HEAD}
 
-echoerr() {
-    echo $@ >&2
-}
-
-# Nix-free version
+# Pure-shell version: check if hlCommit already exists in hyprpm.toml
 findHyprpmPin() {
     local hlCommit="$1"
     grep -q "$hlCommit" hyprpm.toml
 }
 
+# Pure Git: resolve Hyprland tag → commit hash
 getHyprlandCommitFromRev() {
-    git ls-remote https://github.com/hyprwm/Hyprland.git "$1" \
-        | cut -f 1
+    git ls-remote https://github.com/hyprwm/Hyprland.git "$1" | cut -f 1
 }
 
 SCRIPT_DIR="$(dirname "$0")"
 
+# Get latest Hyprland tag
 hlTag="$("$SCRIPT_DIR/latest-hyprland-tag")"
 echoerr "found latest Hyprland release: $hlTag"
 
+# Resolve tag → commit hash
 hlCommit="$(getHyprlandCommitFromRev "$hlTag")"
 echoerr "-> commit: $hlCommit"
 
+# Resolve Hyprgrass commit
 hgCommit="$(git rev-parse "$HYPRGRASS_REV")"
 
+# Skip if already pinned
 if findHyprpmPin "$hlCommit"; then
     echoerr "pin for tag $hlTag already found in hyprpm.toml"
     exit 0
 fi
 
 echoerr "Skipping Nix build/test (fork does not use flakes)"
-commitPin="$hlCommit $hgCommit"
 
-echoerr 'updating hyprpm.toml'
+# Correct pin format: JSON-like array
+commitPin="[\"$hlCommit\", \"$hgCommit\"]"
 
-sed -i "/## DO NOT EDIT THIS LINE: for auto pin script ##/ i\    $commitPin" \
-    hyprpm.toml
+echoerr "updating hyprpm.toml"
 
-echoerr 'done updating hyprpm.toml'
+# Insert pin above the DO NOT EDIT marker
+sed -i "/## DO NOT EDIT THIS LINE: for auto pin script ##/ i\    $commitPin" hyprpm.toml
 
+echoerr "done updating hyprpm.toml"
+
+# Output for CI workflow: "<tag> <commit>"
 echo "$hlTag $hgCommit"

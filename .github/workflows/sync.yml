@@ -43,6 +43,7 @@ jobs:
           # Restore custom files AFTER rebase is complete
           git restore --source=HEAD -- .github/workflows/pin-latest-hyprland.yml
           git restore --source=HEAD -- .github/workflows/sync.yml
+          git restore --source=HEAD -- scripts/ci/pin-latest-hyprland
           git restore --source=HEAD -- hyprpm.toml
 
           # Only commit if changes exist

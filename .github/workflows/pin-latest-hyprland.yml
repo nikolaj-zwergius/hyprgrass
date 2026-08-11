@@ -55,11 +55,15 @@ jobs:
           fi
 
       - name: Commit pin update
-        if: steps.update_pins.outputs.hl_tag
+        id: commit_pin_update
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
           git add hyprpm.toml
-          git commit -m "ci: automated update of hyprpm.toml"
+          git commit -m "Update pins"
           git push origin main
+
+          # Get the commit that modified hyprpm.toml
+          PIN_COMMIT=$(git log -n 1 --pretty=format:%H -- hyprpm.toml)
+          echo "pin_commit=$PIN_COMMIT" >> $GITHUB_OUTPUT
